@@ -12,7 +12,7 @@ const tabs = [
   { id: 'search', label: 'Buscar/Descargar' },
   { id: 'articles', label: 'Artículos' },
   { id: 'results', label: 'Resultados' },
-  { id: 'settings', label: 'Ajustes' }
+  { id: 'settings', label: 'Análisis de Keywords' }
 ]
 
 const currentView = computed(() => {
