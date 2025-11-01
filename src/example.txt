@@ -1,0 +1,126 @@
+[
+	{
+		"algorithm": "Levenshtein",
+		"totalTimeMs": 22,
+		"totalComparisons": 3,
+		"results": [
+			{
+				"idA": "10.1126/science.aaa8415",
+				"idB": "10.3390/technologies12020015",
+				"distance": 1037,
+				"score": 0.2882635552505147,
+				"similarityPercent": 28.83,
+				"timeMs": 7
+			},
+			{
+				"idA": "10.1126/science.aaa8415",
+				"idB": "10.1038/s41586-018-0337-2",
+				"distance": 574,
+				"score": 0.265044814340589,
+				"similarityPercent": 26.5,
+				"timeMs": 9
+			},
+			{
+				"idA": "10.1038/s41586-018-0337-2",
+				"idB": "10.3390/technologies12020015",
+				"distance": 1154,
+				"score": 0.20796156485929995,
+				"similarityPercent": 20.8,
+				"timeMs": 3
+			}
+		]
+	},
+	{
+		"algorithm": "Jaccard",
+		"totalTimeMs": 2,
+		"totalComparisons": 3,
+		"results": [
+			{
+				"idA": "10.1038/s41586-018-0337-2",
+				"idB": "10.3390/technologies12020015",
+				"distance": 867,
+				"score": 0.13333333333333333,
+				"similarityPercent": 13.33,
+				"timeMs": 0
+			},
+			{
+				"idA": "10.1126/science.aaa8415",
+				"idB": "10.1038/s41586-018-0337-2",
+				"distance": 883,
+				"score": 0.11711711711711711,
+				"similarityPercent": 11.71,
+				"timeMs": 0
+			},
+			{
+				"idA": "10.1126/science.aaa8415",
+				"idB": "10.3390/technologies12020015",
+				"distance": 884,
+				"score": 0.11560693641618497,
+				"similarityPercent": 11.56,
+				"timeMs": 0
+			}
+		]
+	},
+	{
+		"algorithm": "TFIDF_COSINE",
+		"totalTimeMs": 1,
+		"totalComparisons": 3,
+		"results": [
+			{
+				"idA": "10.1038/s41586-018-0337-2",
+				"idB": "10.3390/technologies12020015",
+				"distance": 752,
+				"score": 0.24809131952299035,
+				"similarityPercent": 24.81,
+				"timeMs": 0
+			},
+			{
+				"idA": "10.1126/science.aaa8415",
+				"idB": "10.3390/technologies12020015",
+				"distance": 777,
+				"score": 0.22327956915627192,
+				"similarityPercent": 22.33,
+				"timeMs": 0
+			},
+			{
+				"idA": "10.1126/science.aaa8415",
+				"idB": "10.1038/s41586-018-0337-2",
+				"distance": 801,
+				"score": 0.19948294129841784,
+				"similarityPercent": 19.95,
+				"timeMs": 0
+			}
+		]
+	},
+	{
+		"algorithm": "BM25",
+		"totalTimeMs": 4,
+		"totalComparisons": 3,
+		"results": [
+			{
+				"idA": "10.1126/science.aaa8415",
+				"idB": "10.3390/technologies12020015",
+				"distance": 0,
+				"score": 1.0,
+				"similarityPercent": 100.0,
+				"timeMs": 0
+			},
+			{
+				"idA": "10.1038/s41586-018-0337-2",
+				"idB": "10.3390/technologies12020015",
+				"distance": 35,
+				"score": 0.9652363746607954,
+				"similarityPercent": 96.52,
+				"timeMs": 0
+			},
+			{
+				"idA": "10.1126/science.aaa8415",
+				"idB": "10.1038/s41586-018-0337-2",
+				"distance": 1000,
+				"score": 0.0,
+				"similarityPercent": 0.0,
+				"timeMs": 0
+			}
+		]
+	}
+]
