@@ -87,12 +87,20 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watchEffect, nextTick } from 'vue'
 import { apiFetch } from '../lib/api'
 import { appStore, setActiveTab } from '../lib/store'
 
-const articles = ref([])
-const selectedIds = ref(new Set())
+// Artículos y selección provienen del store para persistir entre tabs
+const articles = ref(appStore.articles || [])
+const selectedIds = ref(new Set(appStore.selectedArticleIds || []))
+
+// Mantener sincronizados con el store (serializando Set a array)
+watchEffect(() => {
+  appStore.articles = articles.value
+  appStore.selectedArticleIds = Array.from(selectedIds.value)
+})
+
 const filterText = ref('')
 const isLoadingArticles = ref(false)
 const isAnalyzing = ref(false)
@@ -132,6 +140,7 @@ async function loadArticles() {
     const data = await response.json()
     articles.value = data
     selectedIds.value.clear()
+    selectedIds.value = new Set(selectedIds.value)
   } catch (error) {
     errorMessage.value = `Error al cargar artículos: ${error.message}`
   } finally {
@@ -198,17 +207,25 @@ async function analyzeSimilarity() {
       throw new Error(`Error HTTP: ${response.status}`)
     }
 
-    // El backend retorna JSON; lo parseamos
-    const raw = await response.json()
+    // El backend retorna JSON; lo parseamos de forma robusta
+    let raw
+    try {
+      raw = await response.json()
+    } catch (e) {
+      const text = await response.text()
+      raw = JSON.parse(text)
+    }
 
-    // Hacemos un diccionario rápido de los artículos seleccionados por id para mostrar títulos
     const selectedArticlesMap = Object.fromEntries(
       selectedArticles.map(a => [a.id, a])
     )
 
-    // Guardamos en el store y cambiamos a la pestaña de resultados
     appStore.lastAnalysis = { raw, selectedArticlesMap }
     setActiveTab('results')
+    if (appStore.activeTab !== 'results') {
+      appStore.activeTab = 'results'
+    }
+    await nextTick()
   } catch (error) {
     errorMessage.value = `Error al analizar: ${error.message}`
   } finally {

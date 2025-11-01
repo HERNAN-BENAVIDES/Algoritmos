@@ -19,7 +19,11 @@ export const appStore = reactive({
   //   raw: Array<AlgorithmGroup>,
   //   selectedArticlesMap: Record<string, Article>
   // }
-  lastAnalysis: init.lastAnalysis ?? null
+  lastAnalysis: init.lastAnalysis ?? null,
+  // Lista de artículos cargados en "Artículos"
+  articles: init.articles ?? [],
+  // Selección de IDs de artículos (array simple para fácil serialización)
+  selectedArticleIds: init.selectedArticleIds ?? []
 })
 
 export function setActiveTab(tabId) {
@@ -32,7 +36,9 @@ watch(
     try {
       const toSave = {
         activeTab: val.activeTab,
-        lastAnalysis: val.lastAnalysis
+        lastAnalysis: val.lastAnalysis,
+        articles: val.articles,
+        selectedArticleIds: val.selectedArticleIds
       }
       sessionStorage.setItem('appStore', JSON.stringify(toSave))
     } catch {

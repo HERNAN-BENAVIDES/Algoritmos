@@ -1,7 +1,7 @@
 /* App.vue */
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import SearchDownload from './views/SearchDownload.vue'
 import Articles from './views/Articles.vue'
 import Results from './views/Results.vue'
@@ -24,6 +24,16 @@ const currentView = computed(() => {
   }
   return views[appStore.activeTab]
 })
+
+// Si llegan resultados nuevos, saltar automáticamente a la pestaña de "Resultados"
+watch(
+  () => appStore.lastAnalysis,
+  (val) => {
+    if (val && appStore.activeTab !== 'results') {
+      setActiveTab('results')
+    }
+  }
+)
 </script>
 
 <template>
