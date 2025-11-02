@@ -5,14 +5,14 @@ import { computed, watch } from 'vue'
 import SearchDownload from './views/SearchDownload.vue'
 import Articles from './views/Articles.vue'
 import Results from './views/Results.vue'
-import Settings from './views/Settings.vue'
+import Keywords from './views/Keywords.vue'
 import { appStore, setActiveTab } from './lib/store'
 
 const tabs = [
   { id: 'search', label: 'Buscar/Descargar' },
   { id: 'articles', label: 'Artículos' },
   { id: 'results', label: 'Resultados' },
-  { id: 'settings', label: 'Análisis de Keywords' }
+  { id: 'settings', label: 'Keywords' }
 ]
 
 const currentView = computed(() => {
@@ -20,7 +20,7 @@ const currentView = computed(() => {
     search: SearchDownload,
     articles: Articles,
     results: Results,
-    settings: Settings
+    settings: Keywords
   }
   return views[appStore.activeTab]
 })

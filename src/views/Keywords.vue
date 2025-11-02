@@ -31,10 +31,10 @@
             <li v-for="(it, idx) in topGiven" :key="idx">
               <div class="row">
                 <span class="term">{{ it.term }}</span>
-                <span class="count">{{ it.count }}</span>
+                <span class="count">{{ it.frequency }}</span>
               </div>
               <div class="bar">
-                <div class="fill" :style="{ width: barWidth(it.count, maxGiven) }"></div>
+                <div class="fill" :style="{ width: barWidth(it.frequency, maxGiven) }"></div>
               </div>
             </li>
           </ul>
@@ -46,10 +46,10 @@
             <li v-for="(it, idx) in topDiscovered" :key="idx">
               <div class="row">
                 <span class="term">{{ it.term }}</span>
-                <span class="count">{{ it.count }}</span>
+                <span class="count">{{ it.frequency }}</span>
               </div>
               <div class="bar">
-                <div class="fill alt" :style="{ width: barWidth(it.count, maxDiscovered) }"></div>
+                <div class="fill alt" :style="{ width: barWidth(it.frequency, maxDiscovered) }"></div>
               </div>
             </li>
           </ul>
@@ -100,8 +100,8 @@ async function runAnalysis() {
 const TOP = 15
 const topGiven = computed(() => (result.value?.givenKeywordFrequencies || []).slice(0, TOP))
 const topDiscovered = computed(() => (result.value?.discoveredKeywords || []).slice(0, TOP))
-const maxGiven = computed(() => Math.max(1, ...topGiven.value.map(i => i.count)))
-const maxDiscovered = computed(() => Math.max(1, ...topDiscovered.value.map(i => i.count)))
+const maxGiven = computed(() => Math.max(1, ...topGiven.value.map(i => i.frequency)))
+const maxDiscovered = computed(() => Math.max(1, ...topDiscovered.value.map(i => i.frequency)))
 
 function barWidth(count, max) {
   const pct = Math.round((count / max) * 100)
