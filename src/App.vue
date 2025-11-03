@@ -6,13 +6,15 @@ import SearchDownload from './views/SearchDownload.vue'
 import Articles from './views/Articles.vue'
 import Results from './views/Results.vue'
 import Keywords from './views/Keywords.vue'
+import Dendrogramas from './views/Dendrogramas.vue'
 import { appStore, setActiveTab } from './lib/store'
 
 const tabs = [
   { id: 'search', label: 'Buscar/Descargar' },
   { id: 'articles', label: 'Artículos' },
   { id: 'results', label: 'Resultados' },
-  { id: 'settings', label: 'Keywords' }
+  { id: 'keywords', label: 'Keywords' },
+  { id: 'dendrograms', label: 'Dendrogramas' }
 ]
 
 const currentView = computed(() => {
@@ -20,7 +22,8 @@ const currentView = computed(() => {
     search: SearchDownload,
     articles: Articles,
     results: Results,
-    settings: Keywords
+    dendrograms: Dendrogramas,
+    keywords: Keywords
   }
   return views[appStore.activeTab]
 })

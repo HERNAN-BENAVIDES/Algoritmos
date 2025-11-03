@@ -17,4 +17,19 @@ export function apiFetch(path, options) {
   return fetch(apiUrl(path), options)
 }
 
+// Dispara la generación de dendrogramas (no devuelve imágenes)
+export async function triggerDendrogramGeneration() {
+  const res = await apiFetch('/api/algoritmos/dendrograma', { method: 'GET' })
+  if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
+  // La API puede devolver un JSON de confirmación; lo ignoramos para frontend
+  try { return await res.json() } catch { return null }
+}
+
+// Lista las imágenes locales más recientes por tipo a través del middleware de Vite
+export async function listLocalDendrogramImages() {
+  const res = await fetch('/_local/dendrogramas')
+  if (!res.ok) throw new Error(`No se pudo listar imágenes locales (${res.status})`)
+  return res.json()
+}
+
 export { API_BASE }
