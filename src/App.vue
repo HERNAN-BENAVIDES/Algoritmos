@@ -9,6 +9,9 @@ import Keywords from './views/Keywords.vue'
 import Dendrogramas from './views/Dendrogramas.vue'
 import Grafos from './views/Grafos.vue'
 import GrafoCoocurrencia from './views/GrafoCoocurrencia.vue'
+import MapaCalor from './views/MapaCalor.vue'
+import WordCloud from './views/WordCloud.vue'
+import Timeline from './views/Timeline.vue'
 import { appStore, setActiveTab } from './lib/store'
 
 const tabs = [
@@ -18,7 +21,10 @@ const tabs = [
   { id: 'keywords', label: 'Keywords' },
   { id: 'dendrograms', label: 'Dendrogramas' },
   { id: 'citationGraph', label: 'Grafo de citaciones' },
-  { id: 'cooccurrenceGraph', label: 'Grafo de coocurrencia' }
+  { id: 'cooccurrenceGraph', label: 'Grafo de coocurrencia' },
+  { id: 'heatmap', label: 'Mapa de calor' },
+  { id: 'wordcloud', label: 'Nube de palabras' },
+  { id: 'timeline', label: 'Línea temporal' }
 ]
 
 const currentView = computed(() => {
@@ -29,7 +35,10 @@ const currentView = computed(() => {
     dendrograms: Dendrogramas,
     keywords: Keywords,
     citationGraph: Grafos,
-    cooccurrenceGraph: GrafoCoocurrencia
+    cooccurrenceGraph: GrafoCoocurrencia,
+    heatmap: MapaCalor,
+    wordcloud: WordCloud,
+    timeline: Timeline
   }
   return views[appStore.activeTab]
 })

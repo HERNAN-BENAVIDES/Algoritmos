@@ -159,4 +159,25 @@ export async function buildCooccurrenceFixed() {
     try { return await res.json() } catch { return null }
 }
 
+export async function mapFirstAuthorCountries() {
+  const res = await apiFetch('/api/algoritmos/viz/map-first-author', { method: 'GET' })
+  if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
+  return res.json()
+}
+
+export async function wordCloud(limit) {
+  const params = new URLSearchParams()
+  if (limit != null && limit !== '') params.set('limit', String(limit))
+  const url = `/api/algoritmos/viz/wordcloud${params.toString() ? `?${params.toString()}` : ''}`
+  const res = await apiFetch(url, { method: 'GET' })
+  if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
+  return res.json()
+}
+
+export async function fetchTimeline() {
+  const res = await apiFetch('/api/algoritmos/viz/timeline', { method: 'GET' })
+  if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
+  return res.json()
+}
+
 export { API_BASE }
