@@ -7,6 +7,8 @@ import Articles from './views/Articles.vue'
 import Results from './views/Results.vue'
 import Keywords from './views/Keywords.vue'
 import Dendrogramas from './views/Dendrogramas.vue'
+import Grafos from './views/Grafos.vue'
+import GrafoCoocurrencia from './views/GrafoCoocurrencia.vue'
 import { appStore, setActiveTab } from './lib/store'
 
 const tabs = [
@@ -14,7 +16,9 @@ const tabs = [
   { id: 'articles', label: 'Artículos' },
   { id: 'results', label: 'Resultados' },
   { id: 'keywords', label: 'Keywords' },
-  { id: 'dendrograms', label: 'Dendrogramas' }
+  { id: 'dendrograms', label: 'Dendrogramas' },
+  { id: 'citationGraph', label: 'Grafo de citaciones' },
+  { id: 'cooccurrenceGraph', label: 'Grafo de coocurrencia' }
 ]
 
 const currentView = computed(() => {
@@ -23,7 +27,9 @@ const currentView = computed(() => {
     articles: Articles,
     results: Results,
     dendrograms: Dendrogramas,
-    keywords: Keywords
+    keywords: Keywords,
+    citationGraph: Grafos,
+    cooccurrenceGraph: GrafoCoocurrencia
   }
   return views[appStore.activeTab]
 })
@@ -105,22 +111,28 @@ html, body, #app {
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 1000; /* elevar sobre cualquier otro contenido */
   width: 100%;
-  background: var(--card);
+  background: var(--card); /* fondo 100% opaco */
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
 
-/* Header centrado con ancho máximo */
-.header-inner {
+/* Eliminado ::before y blur para evitar transparencia */
+
+.header-inner { /* asegurar que quede sobre la capa de fondo */
+  position: relative;
+  z-index: 1;
   max-width: 1200px;
+  width: 100%; /* asegurar cobertura completa */
   margin: 0 auto;
   padding: 1rem 1.5rem 0.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
+  background: #e6f2ff; /* azul claro */
+  background: linear-gradient(180deg,#e9f4ff 0%, #e6f2ff 40%, #e6f2ff 100%); /* leve degradado suave */
 }
 
 .main-title {
@@ -167,10 +179,10 @@ html, body, #app {
 }
 
 .tab-btn.active {
-  background: #eaf2ff;
+  background: #a7ccff; /* azul un poco más oscuro que el header */
   color: var(--accent);
-  border-color: #cfe2ff;
-  box-shadow: 0 1px 4px rgba(11,94,215,0.15);
+  border-color: #b9d9ff; /* acorde al nuevo tono */
+  box-shadow: 0 1px 4px rgba(11,94,215,0.18);
 }
 
 /* ===== Main / Contenido ===== */
