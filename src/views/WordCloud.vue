@@ -1,3 +1,5 @@
+<!-- WordCloud.vue-->
+
 <template>
   <div class="wordcloud-view">
     <div class="header-row">
@@ -8,12 +10,13 @@
           <input v-model.number="limit" type="number" min="1" step="1" placeholder="Ej: 100" />
         </label>
         <button class="primary" type="submit" :disabled="loading">{{ loading ? 'Cargando…' : 'Actualizar' }}</button>
+        <button class="secondary" type="button" @click="exportPdf" :disabled="loading || !words.length">Exportar PDF</button>
       </form>
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
 
-    <div class="cloud-wrapper" :class="{ loading: loading }">
+    <div class="cloud-wrapper" :class="{ loading: loading }" ref="exportEl">
       <div v-if="loading" class="loading-overlay">Generando nube…</div>
       <div v-else class="cloud" ref="cloudEl">
         <span
@@ -38,6 +41,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { wordCloud } from '@/lib/api'
+import { exportElementDoubleRotated } from '@/lib/exportPdf'
 
 // Normaliza distintos formatos de respuesta a [{term, frequency}]
 function normalizeWordCloudData(raw) {
@@ -62,6 +66,7 @@ const error = ref('')
 const words = ref([])
 const selected = ref(null)
 const cloudEl = ref(null)
+const exportEl = ref(null)
 
 const totalFrequency = computed(() => words.value.reduce((acc, w) => acc + (w.frequency || 0), 0))
 
@@ -122,6 +127,16 @@ async function reload() {
   }
 }
 
+async function exportPdf() {
+  try {
+    if (!exportEl.value) throw new Error('Elemento no disponible')
+    await exportElementDoubleRotated(exportEl.value, 'nube_palabras.pdf')
+  } catch (e) {
+    console.error('[WordCloud] Exportación fallida:', e)
+    alert(e.message || 'No se pudo exportar el PDF')
+  }
+}
+
 function selectWord(w) {
   selected.value = w
 }
@@ -141,6 +156,8 @@ watch(limit, (val, old) => {
 .field input { padding: .45rem .6rem; border: 1px solid #d0d7de; border-radius: 8px; }
 .primary { background: #0b5ed7; color: #fff; border: none; border-radius: 8px; padding: .55rem .95rem; cursor: pointer; }
 .primary:disabled { opacity: .6; cursor: not-allowed; }
+.secondary { background: #eef4ff; color: #0b5ed7; border: 1px solid #cfe2ff; border-radius: 8px; padding: .45rem .85rem; cursor: pointer; }
+.secondary:disabled { opacity: .6; cursor: not-allowed; }
 .error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: .5rem .75rem; border-radius: 8px; }
 .cloud-wrapper { position: relative; min-height: 420px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; padding: .75rem; overflow: hidden; }
 .cloud-wrapper.loading { opacity: 0.75; }

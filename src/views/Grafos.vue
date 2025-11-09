@@ -1,4 +1,3 @@
-<!-- Grafos.vue -->
 <template>
   <div class="graphs-view">
     <div class="header-row">
@@ -123,7 +122,7 @@
           {{ loading.components ? 'Consultando…' : 'Mostrar componentes' }}
         </button>
 
-        <button class="secondary" @click="clearComponentsView" :disabled="!cy">
+        <button class="secondary" @click="clearComponentsAction" :disabled="!cy">
           Limpiar
         </button>
       </div>
@@ -142,7 +141,6 @@
           <span class="muted" v-if="ids.length===1"> • solitario</span>
         </div>
       </div>
-
     </section>
 
     <p v-if="error" class="error">{{ error }}</p>
@@ -150,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import cytoscape from 'cytoscape'
 import { buildCitationGraph, shortestCitationPath, citationComponents } from '@/lib/api'
 
@@ -240,6 +238,7 @@ function renderGraph(relationships) {
       }))
     ],
     style: [
+      // Estilo base (no usa rojo)
       {
         selector: 'node',
         style: {
@@ -276,13 +275,23 @@ function renderGraph(relationships) {
           }
         }
       },
+      // ❗️Rojo reservado para caminos (no se usa en ningún otro lugar)
       {
         selector: '.path-node',
-        style: { 'background-color': '#d97706', 'border-color': '#92400e', 'border-width': 2 }
+        style: {
+          'background-color': '#dc2626',
+          'border-color': '#7f1d1d',
+          'border-width': 2
+        }
       },
       {
         selector: '.path-edge',
-        style: { 'line-color': '#d97706', 'target-arrow-color': '#d97706', 'width': 4, 'opacity': 0.95 }
+        style: {
+          'line-color': '#dc2626',
+          'target-arrow-color': '#dc2626',
+          'width': 4,
+          'opacity': 0.95
+        }
       }
     ],
     layout: {
@@ -300,7 +309,7 @@ function renderGraph(relationships) {
   cy.once('layoutstop', () => fitView())
 
   cy.on('tap', 'node', (evt) => {
-    clearPathClasses()
+    // No limpiar camino al inspeccionar, solo ocultamos panel si hace falta
     const n = evt.target
     detail.value = {
       visible: true,
@@ -311,7 +320,6 @@ function renderGraph(relationships) {
   })
 
   cy.on('tap', 'edge', (evt) => {
-    clearPathClasses()
     const e = evt.target
     detail.value = {
       visible: true,
@@ -353,7 +361,7 @@ async function copyDoi(text) {
   }
 }
 
-/* ----------------- camino mínimo ----------------- */
+/* ----------------- camino mínimo (resalta en ROJO) ----------------- */
 async function onShortestPath() {
   const s = (sourceId.value || '').trim()
   const t = (targetId.value || '').trim()
@@ -365,34 +373,79 @@ async function onShortestPath() {
 }
 
 function clearPath() { shortestResult.value = null; clearPathClasses() }
+
 function clearPathClasses() {
   if (!cy) return
   cy.nodes().removeClass('path-node')
   cy.edges().removeClass('path-edge')
 }
+
+function edgesBetween(u, v) {
+  const all = cy ? cy.edges() : null
+  if (!all) return cy.collection()
+  return all.filter(e => {
+    const s = e.data('source')
+    const t = e.data('target')
+    return (s === u && t === v) || (s === v && t === u)
+  })
+}
+
+function elementExists(coll) { return coll && coll.length && !coll.empty() }
+
 function highlightPath(pathIds) {
   if (!cy || !Array.isArray(pathIds) || pathIds.length < 2) return
   clearPathClasses()
-  pathIds.forEach(id => {
-    const n = cy.getElementById(id)
-    if (n && n.nonempty()) n.addClass('path-node')
+
+  cy.batch(() => {
+    // Nodos del camino (eliminamos cualquier bypass para que prevalezca la clase roja)
+    pathIds.forEach(id => {
+      const n = cy.getElementById(String(id))
+      if (elementExists(n)) {
+        n.removeStyle()           // quita estilos inline previos (componentes, focus, etc.)
+        n.addClass('path-node')   // aplica estilo ROJO reservado
+      }
+    })
+    // Aristas entre nodos consecutivos
+    for (let i = 0; i < pathIds.length - 1; i++) {
+      const u = String(pathIds[i])
+      const v = String(pathIds[i + 1])
+      const es = edgesBetween(u, v)
+      if (elementExists(es)) {
+        es.removeStyle()          // quita bypass para que prevalezca clase
+        es.addClass('path-edge')  // estilo ROJO reservado
+      }
+    }
   })
-  for (let i = 0; i < pathIds.length - 1; i++) {
-    const u = pathIds[i], v = pathIds[i + 1]
-    const e = cy.$(`edge[source = "${u}"][target = "${v}"]`)
-    if (e && e.nonempty()) e.addClass('path-edge')
+
+  const nodesSel = cy.$('.path-node')
+  const edgesSel = cy.$('.path-edge')
+  const eles = nodesSel.union(edgesSel)
+  if (elementExists(eles)) {
+    cy.animate({ fit: { eles, padding: 60 }, duration: 450, easing: 'ease' })
+  } else if (elementExists(nodesSel)) {
+    cy.animate({ fit: { eles: nodesSel, padding: 60 }, duration: 450, easing: 'ease' })
   }
-  const eles = cy.$('.path-node').union(cy.$('.path-edge'))
-  if (eles.nonempty()) cy.animate({ fit: { eles, padding: 60 }, duration: 450, easing: 'ease' })
 }
 
 /* ----------------- componentes ----------------- */
 const compType = ref('weak')
 const compList = ref([])
 const singletonGray = '#9ca3af'
+
+// Paleta de componentes SIN rojos (rojo reservado para caminos)
 const compPalette = [
-  '#2563eb','#16a34a','#dc2626','#7c3aed','#0891b2','#ca8a04',
-  '#9333ea','#059669','#ef4444','#0ea5e9','#d946ef','#f59e0b'
+  '#2563eb', // azul
+  '#16a34a', // verde
+  '#7c3aed', // púrpura
+  '#0891b2', // cian
+  '#ca8a04', // ámbar oscuro
+  '#9333ea', // violeta
+  '#059669', // verde
+  '#0ea5e9', // azul claro
+  '#d946ef', // fucsia
+  '#f59e0b', // ámbar
+  '#06b6d4', // cian
+  '#84cc16'  // lima
 ]
 function compColor(idx, size) {
   return size === 1 ? singletonGray : compPalette[idx % compPalette.length]
@@ -411,7 +464,7 @@ async function loadAndShowComponents() {
 function applyComponentsToGraph(components) {
   clearComponentsView()
 
-  // Map de pertenencia (nodo -> índice componente) y tamaños
+  // pertenencia (nodo -> índice componente) y tamaños
   const belong = new Map()
   const compSizes = new Map()
   components.forEach((arr, idx) => {
@@ -419,7 +472,9 @@ function applyComponentsToGraph(components) {
     ;(arr || []).forEach(id => belong.set(id, idx))
   })
 
+  // NODOS: no tocar los que estén en el camino (clase .path-node)
   cy.nodes().forEach(n => {
+    if (n.hasClass('path-node')) return
     const id = n.id()
     if (belong.has(id)) {
       const idx = belong.get(id)
@@ -432,19 +487,19 @@ function applyComponentsToGraph(components) {
         'opacity': 1
       })
     } else {
-      // No listado en ningún componente → atenuado
       n.style({ 'opacity': 0.15 })
     }
   })
 
+  // ARISTAS: no tocar las del camino (clase .path-edge)
   cy.edges().forEach(e => {
+    if (e.hasClass('path-edge')) return
     const s = e.source().id()
     const t = e.target().id()
     const is = belong.get(s)
     const it = belong.get(t)
     const sameComp = (is != null && it != null && is === it)
     const compSize = sameComp ? (compSizes.get(is) || 0) : 0
-    // Si la arista conecta dos nodos del mismo componente no-solitario → resaltar un poco más
     e.style({ 'opacity': sameComp && compSize > 1 ? 0.9 : 0.12 })
   })
 
@@ -456,9 +511,10 @@ function focusComponent(idx) {
   const ids = compList.value[idx]
   const size = ids.length
   const baseColor = compColor(idx, size)
-  const col = cy.collection(ids.map(id => cy.getElementById(id)).filter(x => x && x.nonempty()))
 
   cy.nodes().forEach(n => {
+    // no sobrescribir nodos del camino
+    if (n.hasClass('path-node')) return
     if (ids.includes(n.id())) {
       n.style({
         'opacity': 1,
@@ -472,120 +528,116 @@ function focusComponent(idx) {
   })
 
   cy.edges().forEach(e => {
+    // no sobrescribir aristas del camino
+    if (e.hasClass('path-edge')) return
     const inComp = ids.includes(e.source().id()) && ids.includes(e.target().id())
     e.style({ 'opacity': inComp && size > 1 ? 0.9 : 0.08 })
   })
 
-  if (col.length) cy.animate({ fit: { eles: col, padding: 60 }, duration: 450, easing: 'ease' })
+  if (ids.length) {
+    const nodes = cy.collection(ids.map(id => cy.getElementById(id)).filter(x => x && x.nonempty()))
+    const edges = cy.edges().filter(e => ids.includes(e.source().id()) && ids.includes(e.target().id()))
+    const sel = nodes.union(edges)
+    cy.animate({ fit: { eles: sel, padding: 80 }, duration: 500, easing: 'ease' })
+  }
 }
 
+// Restablece estilos base, pero RESPETA el rojo del camino
 function clearComponentsView() {
   if (!cy) return
-  cy.nodes().forEach(n => {
-    const deg = n.degree(false)
-    const size = Math.max(10, Math.min(28, 10 + Math.log2(deg + 2) * 6))
+  // Nodos: reset para todos EXCEPTO los del camino
+  cy.nodes().not('.path-node').forEach(n => {
     n.style({
       'background-color': '#2b8a3e',
       'border-color': '#1b4332',
       'border-width': 1,
-      'width': size,
-      'height': size,
       'opacity': 1
     })
   })
-  cy.edges().forEach(e => {
+  // Aristas: reset para todas EXCEPTO las del camino
+  cy.edges().not('.path-edge').forEach(e => {
     const s = Number(e.data('similarity') ?? 0)
     e.style({
       'line-color': '#3c78c8',
       'target-arrow-color': '#3c78c8',
-      'width': 1 + 3 * Math.max(0, Math.min(1, s)),
       'opacity': 0.25 + 0.6 * Math.max(0, Math.min(1, s))
     })
   })
-  compList.value = []
-  fitView()
 }
 
-/* ----------------- ciclo de vida ----------------- */
-function onResize() { if (cy) cy.resize() }
-onMounted(() => { window.addEventListener('resize', onResize) })
-onBeforeUnmount(() => { window.removeEventListener('resize', onResize); if (cy) cy.destroy() })
+function clearComponentsAction(){
+  clearComponentsView()
+  compList.value = []
+  componentsResult.value = null
+}
+
+onBeforeUnmount(() => {
+  if (cy) { cy.destroy(); cy = null }
+})
 </script>
 
 <style scoped>
-.graphs-view { padding: 0.5rem 0 1rem; display: grid; gap: 1rem; }
-.header-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .25rem; }
+.graphs-view {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
 
-.card { border: 1px solid #eaeaea; border-radius: 12px; padding: .85rem; background: #fff; }
-.card h3 { margin: 0 0 .5rem; font-size: 1.1rem; }
-.row { display: flex; align-items: flex-end; gap: .5rem; flex-wrap: wrap; }
-.row.wrap { align-items: center; }
-.field { display: grid; gap: .25rem; min-width: 220px; }
-.field input, .field select { padding: .5rem .6rem; border: 1px solid #dcdcdc; border-radius: 8px; }
+.header-row {
+  text-align: center;
+  margin-bottom: 2rem;
+}
 
+.card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+}
+
+.card h3 { margin-top: 0; }
+
+.row { display: flex; flex-wrap: wrap; gap: 1rem; }
+
+.field { flex: 1; min-width: 200px; }
+
+.primary { background-color: #2563eb; color: white; }
+.secondary { background-color: #f3f4f6; color: #111827; }
+
+.result {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.graph-wrapper { position: relative; width: 100%; padding-top: 75%; /* 4:3 */ }
+.cy { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.detail-panel {
+  background: #fff; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,.1);
+  padding: 1rem; position: absolute; top: 1rem; right: 1rem; width: 300px; max-width: 100%; z-index: 10;
+}
+.detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.detail-body { font-size: .875rem; }
+
+.k { font-weight: 500; color: #374151; }
+.v { font-weight: 400; color: #111827; }
+.copy-ok { color: #16a34a; font-size: .875rem; margin-top: .5rem; }
+
+.error { color: #dc2626; margin-top: 1rem; text-align: center; }
+
+.comp-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+.comp-item { background: #f3f4f6; border-radius: 8px; padding: 1rem; cursor: pointer; transition: transform .2s; }
+.comp-item:hover { transform: translateY(-2px); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .5rem; vertical-align: middle; background: var(--comp-color); }
+
+.muted { color: #6b7280; }
+
+/* Botones coherentes */
 .primary { background: #0b5ed7; color: #fff; border: none; border-radius: 8px; padding: .5rem .9rem; cursor: pointer; }
 .secondary { background: #eef4ff; color: #0b5ed7; border: 1px solid #cfe2ff; border-radius: 8px; padding: .5rem .9rem; cursor: pointer; }
 .primary:disabled, .secondary:disabled { opacity: .6; cursor: not-allowed; }
-
-.result { margin-top: .5rem; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: .5rem; }
-.result pre { max-height: 320px; overflow: auto; background: #fff; border: 1px solid #eee; border-radius: 6px; padding: .5rem; }
-
-.graph-wrapper { position: relative; border: 1px dashed #e5e7eb; border-radius: 10px; background: #f9fafb; margin-top: .6rem; }
-.cy {
-  width: 100%;
-  height: clamp(520px, 72vh, 980px);
-  display: block;
-  box-sizing: border-box;
-}
-
-.detail-panel {
-  position: absolute;
-  right: 10px; top: 10px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.08);
-  width: min(480px, 92%);
-  max-height: 75vh;
-  overflow: auto;
-  padding: .6rem .6rem .8rem;
-}
-.detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .4rem; }
-.icon-btn { background: transparent; border: none; font-size: 1rem; cursor: pointer; color: #6b7280; }
-.icon-btn:hover { color: #111827; }
-.detail-body { display: grid; gap: .4rem; }
-.kv { display: grid; grid-template-columns: 120px 1fr; column-gap: .6rem; }
-.k { color: #6b7280; }
-.v { color: #111827; }
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-.copy-ok { color: #16a34a; margin: .2rem 0 0; }
-.wfull { width: 100%; }
-
-.comp-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: .45rem;
-  margin-top: .6rem;
-}
-.comp-item {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .45rem .6rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  background: #fff;
-  transition: background .15s ease;
-  --comp-color: #999;
-}
-.comp-item:hover { background: #f9fafb; }
-.comp-item .dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--comp-color, #999);
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.05) inset;
-}
-.comp-item .muted { color: #6b7280; font-size: .9rem; }
-
-.error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: .5rem; border-radius: 8px; }
 </style>

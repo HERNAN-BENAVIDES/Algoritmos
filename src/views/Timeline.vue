@@ -1,3 +1,5 @@
+<!-- Timeline.vue -->
+
 <template>
   <div class="timeline-view">
     <div class="header-row">
@@ -8,12 +10,14 @@
           Mostrar revistas
           <input type="checkbox" v-model="showRevistas" />
         </label>
+        <!-- ⬇️ este botón ahora intenta “hacer clic” en el de la modebar -->
+        <button class="secondary" @click="onHeaderExport" :disabled="loading || !data">Exportar PDF</button>
       </div>
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
 
-    <div class="chart-wrapper">
+    <div class="chart-wrapper" ref="exportEl">
       <div v-if="loading" class="loading">Cargando línea…</div>
       <div v-show="!loading" ref="chartEl" class="chart"></div>
     </div>
@@ -22,18 +26,18 @@
       <section class="legend">
         <h3>Resumen</h3>
         <p><strong>Años:</strong> {{ years.length }}</p>
-        <p><strong>Publicaciones totales:</strong> {{ totalPublications }}</p>
+        <p><strong>Publicaciones totales:</strong> {{ totalPublicinations }}</p>
 
         <details v-if="data?.venues?.length">
           <summary>Revistas ({{ data.venues.length }})</summary>
 
           <div class="revistas-controls">
             <input
-              v-model="revistaQuery"
-              type="text"
-              class="search"
-              placeholder="Buscar revista…"
-              :disabled="!showRevistas"
+                v-model="revistaQuery"
+                type="text"
+                class="search"
+                placeholder="Buscar revista…"
+                :disabled="!showRevistas"
             />
             <div class="revistas-actions">
               <button class="secondary" @click="clearSelection" :disabled="!selectedRevistas.size">Limpiar selección</button>
@@ -45,13 +49,13 @@
             <div class="virtual-spacer" :style="{ height: totalListHeight + 'px' }">
               <div class="virtual-inner" :style="{ transform: `translateY(${topPadding}px)` }">
                 <li
-                  v-for="r in visibleRevistas"
-                  :key="r.name"
-                  :class="['revista-item', { selected: selectedRevistas.has(r.name) }]"
-                  @click="onRevistaClick(r.name)"
-                  @dblclick.prevent="onRevistaDblClick(r.name)"
-                  :title="`${r.name} · total ${r.total}`"
-                  :style="{ height: rowHeight + 'px' }"
+                    v-for="r in visibleRevistas"
+                    :key="r.name"
+                    :class="['revista-item', { selected: selectedRevistas.has(r.name) }]"
+                    @click="onRevistaClick(r.name)"
+                    @dblclick.prevent="onRevistaDblClick(r.name)"
+                    :title="`${r.name} · total ${r.total}`"
+                    :style="{ height: rowHeight + 'px' }"
                 >
                   <span class="name">{{ r.name }}</span>
                   <span class="total">{{ r.total }}</span>
@@ -84,23 +88,27 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import Plotly from 'plotly.js-dist'
 import { fetchTimeline } from '@/lib/api'
+import { exportImageUrlDoubleRotated } from '@/lib/exportPdf'
 
+// --- Estado base ---
 const loading = ref(false)
 const error = ref('')
 const data = ref(null)
 const chartEl = ref(null)
+const exportEl = ref(null)
 
-// Renombrado: antes showVenues
 const showRevistas = ref(true)
-
-// Estado para lista de revistas
 const revistaQuery = ref('')
 const selectedRevistas = ref(new Set())
 
-const years = computed(() => data.value ? Object.keys(data.value.publicationsByYear || {}).map(y => Number(y)).sort((a,b)=>a-b) : [])
-const totalPublications = computed(() => years.value.reduce((acc, y) => acc + (data.value.publicationsByYear?.[y] || 0), 0))
-
-// Totales por revista (suma en todos los años)
+const years = computed(() =>
+    data.value
+        ? Object.keys(data.value.publicationsByYear || {}).map(y => Number(y)).sort((a, b) => a - b)
+        : []
+)
+const totalPublicinations = computed(() =>
+    years.value.reduce((acc, y) => acc + (data.value.publicationsByYear?.[y] || 0), 0)
+)
 const revistaTotals = computed(() => {
   const result = {}
   const byYearVenue = data.value?.publicationsByYearAndVenue || {}
@@ -112,13 +120,10 @@ const revistaTotals = computed(() => {
   }
   return result
 })
-
 const revistas = computed(() => {
   const arr = (data.value?.venues || []).map(name => ({ name, total: revistaTotals.value[name] || 0 }))
-  // Ordenar por total desc, luego alfabético
-  return arr.sort((a,b) => (b.total - a.total) || a.name.localeCompare(b.name))
+  return arr.sort((a, b) => (b.total - a.total) || a.name.localeCompare(b.name))
 })
-
 const filteredRevistas = computed(() => {
   const q = revistaQuery.value.trim().toLowerCase()
   if (!q) return revistas.value
@@ -140,14 +145,40 @@ async function loadData() {
   }
 }
 
-function clearSelection() {
-  selectedRevistas.value = new Set()
-  renderChart()
+// --- Exportar por code (igual que el botón nativo de la modebar) ---
+async function exportPdfProgrammatic() {
+  if (!chartEl.value) throw new Error('Elemento no disponible')
+  const dataUrl = await Plotly.toImage(chartEl.value, { format: 'png', scale: 2 })
+  await exportImageUrlDoubleRotated(dataUrl, 'linea_temporal.pdf')
 }
 
+// --- Click externo que intenta accionar el botón interno de la modebar ---
+async function onHeaderExport() {
+  const clicked = clickModebarButtonByTitle('Exportar PDF') // nuestro botón custom
+      || clickModebarButtonByTitle('Download plot as a png') // botón nativo
+  if (!clicked) {
+    // Fallback robusto si el botón no existe aún
+    try { await exportPdfProgrammatic() }
+    catch (e) { console.error('[Timeline] Export (fallback) failed:', e); alert('No se pudo exportar el PDF') }
+  }
+}
+
+// Busca un botón en la modebar por su 'data-title'/'title' y le hace click
+function clickModebarButtonByTitle(title) {
+  const root = chartEl.value
+  if (!root) return false
+  const modebar = root.querySelector('.modebar')
+  if (!modebar) return false
+  const btn = Array.from(modebar.querySelectorAll('.modebar-btn'))
+      .find(b => b.getAttribute('data-title') === title || b.getAttribute('title') === title)
+  if (btn) { btn.click(); return true }
+  return false
+}
+
+// Doble clic / selección de revistas (igual que tenías)
+function clearSelection() { selectedRevistas.value = new Set(); renderChart() }
 let clickTimer = null
 function onRevistaClick(name) {
-  // Diferenciar de doble clic con un pequeño retardo
   if (clickTimer) return
   clickTimer = setTimeout(() => {
     clickTimer = null
@@ -157,27 +188,22 @@ function onRevistaClick(name) {
     renderChart()
   }, 200)
 }
-
 function onRevistaDblClick(name) {
   if (clickTimer) { clearTimeout(clickTimer); clickTimer = null }
   const set = new Set(selectedRevistas.value)
-  // Si ya es selección exclusiva (solo esa), limpiar selección
-  if (set.size === 1 && set.has(name)) {
-    selectedRevistas.value = new Set()
-  } else {
-    selectedRevistas.value = new Set([name])
-  }
+  selectedRevistas.value = (set.size === 1 && set.has(name)) ? new Set() : new Set([name])
   renderChart()
 }
 
+// --- Render del gráfico con botón PDF en la modebar ---
 function renderChart() {
   if (!chartEl.value || !data.value) return
   const byYear = data.value.publicationsByYear || {}
   const byYearVenue = data.value.publicationsByYearAndVenue || {}
   const allVenues = data.value.venues || []
 
-  const xYears = Object.keys(byYear).map(Number).sort((a,b)=>a-b)
-  const totalTrace = {
+  const xYears = Object.keys(byYear).map(Number).sort((a, b) => a - b)
+  const traces = [{
     x: xYears,
     y: xYears.map(y => byYear[y] || 0),
     type: 'scatter',
@@ -185,25 +211,14 @@ function renderChart() {
     name: 'Total',
     line: { width: 3, color: '#0b5ed7' },
     marker: { size: 7 }
-  }
-
-  const traces = [totalTrace]
+  }]
 
   if (showRevistas.value) {
     const target = selectedRevistas.value.size ? Array.from(selectedRevistas.value) : allVenues
     target.forEach(venue => {
-      const yVals = xYears.map(y => (byYearVenue[y] && byYearVenue[y][venue]) ? byYearVenue[y][venue] : 0)
-      const nonZero = yVals.some(v => v > 0)
-      if (!nonZero) return
-      traces.push({
-        x: xYears,
-        y: yVals,
-        type: 'scatter',
-        mode: 'lines+markers',
-        name: venue,
-        line: { width: 2 },
-        marker: { size: 5 }
-      })
+      const yVals = xYears.map(y => (byYearVenue[y]?.[venue]) || 0)
+      if (!yVals.some(v => v > 0)) return
+      traces.push({ x: xYears, y: yVals, type: 'scatter', mode: 'lines+markers', name: venue, line: { width: 2 }, marker: { size: 5 } })
     })
   }
 
@@ -218,16 +233,39 @@ function renderChart() {
     legend: { orientation: 'h', y: -0.2 }
   }
 
-  Plotly.newPlot(chartEl.value, traces, layout, { responsive: true })
+  // Botón “Exportar PDF” dentro de la modebar
+  const pdfIcon = {
+    width: 512, height: 512,
+    // (icono simple; si no aparece, igualmente el 'title' sirve para localizar el botón)
+    path: 'M96 32 L320 32 L416 128 L416 480 L96 480 Z M320 32 L320 128 L416 128 M144 224 L368 224 L368 256 L144 256 Z M144 288 L368 288 L368 320 L144 320 Z M144 352 L304 352 L304 384 L144 384 Z'
+  }
+
+  const config = {
+    responsive: true,
+    toImageButtonOptions: { format: 'png', scale: 2, filename: 'linea_temporal' },
+    modeBarButtonsToAdd: [{
+      name: 'Exportar PDF',
+      title: 'Exportar PDF',
+      icon: pdfIcon,
+      click: async (gd) => {
+        try {
+          const url = await Plotly.toImage(gd, { format: 'png', scale: 2 })
+          await exportImageUrlDoubleRotated(url, 'linea_temporal.pdf')
+        } catch (err) {
+          console.error('[Timeline] Modebar PDF:', err)
+          alert('No se pudo exportar el PDF')
+        }
+      }
+    }]
+  }
+
+  Plotly.newPlot(chartEl.value, traces, layout, config)
 }
 
-// Virtual list setup
+// --- Virtual list (igual que tenías) ---
 const revistasListEl = ref(null)
-const rowHeight = 36 // px por fila
-const overscan = 6   // filas extra arriba/abajo
-const scrollTop = ref(0)
-const viewportHeight = ref(0)
-
+const rowHeight = 36, overscan = 6
+const scrollTop = ref(0), viewportHeight = ref(0)
 const totalListHeight = computed(() => filteredRevistas.value.length * rowHeight)
 const startIndex = computed(() => Math.max(0, Math.floor(scrollTop.value / rowHeight) - overscan))
 const visibleCount = computed(() => Math.ceil((viewportHeight.value || 1) / rowHeight) + overscan * 2)
@@ -242,58 +280,49 @@ function onListScroll() {
   if (raf) cancelAnimationFrame(raf)
   raf = requestAnimationFrame(() => { scrollTop.value = st })
 }
-
-function measureListViewport() {
-  viewportHeight.value = revistasListEl.value ? revistasListEl.value.clientHeight : 0
-}
-
+function measureListViewport() { viewportHeight.value = revistasListEl.value ? revistasListEl.value.clientHeight : 0 }
 function onResize() { measureListViewport() }
 
 onMounted(() => {
   measureListViewport()
   window.addEventListener('resize', onResize, { passive: true })
 })
-
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   if (raf) cancelAnimationFrame(raf)
 })
-
 watch(filteredRevistas, () => {
-  // Al cambiar el filtro, resetear scroll para UX más predecible
   if (revistasListEl.value) revistasListEl.value.scrollTop = 0
   scrollTop.value = 0
 })
-
 onMounted(loadData)
 watch(showRevistas, () => renderChart())
 </script>
 
 <style scoped>
+/* … (estilos iguales a los tuyos) … */
 .timeline-view { display: grid; gap: 1rem; }
 .header-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .75rem; }
 .actions { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
 .primary { background: #0b5ed7; color: #fff; border: none; border-radius: 8px; padding: .55rem .95rem; cursor: pointer; }
 .primary:disabled { opacity: .6; cursor: not-allowed; }
+.secondary { background: #eef4ff; color: #0b5ed7; border: 1px solid #cfe2ff; border-radius: 8px; padding: .45rem .85rem; cursor: pointer; }
+.secondary:disabled { opacity: .6; cursor: not-allowed; }
 .field { display: flex; align-items: center; gap: .4rem; font-size: .85rem; }
 .error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: .5rem .75rem; border-radius: 8px; }
 .chart-wrapper { position: relative; min-height: 460px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
 .chart { width: 100%; height: 100%; }
 .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #0b5ed7; }
-
 .bottom-panels { display: grid; gap: 1rem; grid-template-columns: 1fr; }
 @media (min-width: 900px) { .bottom-panels { grid-template-columns: 3fr 2fr; align-items: start; } }
-
 .legend { border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; padding: .75rem .9rem; font-size: .9rem; }
 .legend ul { list-style: none; margin: 0; padding: 0; }
 .legend pre { max-height: 300px; overflow: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: .5rem; }
-
 .revistas-controls { display: grid; gap: .5rem; margin: .5rem 0; }
 .search { width: 100%; padding: .45rem .6rem; border: 1px solid #d0d7de; border-radius: 8px; }
 .revistas-actions { display: flex; align-items: center; gap: .5rem; }
 .secondary { background: #eef4ff; color: #0b5ed7; border: 1px solid #cfe2ff; border-radius: 8px; padding: .4rem .7rem; cursor: pointer; }
 .hint { color: #475569; font-size: .85rem; }
-
 .revistas-list { max-height: 260px; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; position: relative; }
 .virtual-spacer { position: relative; width: 100%; }
 .virtual-inner { position: absolute; left: 0; right: 0; will-change: transform; }
@@ -303,7 +332,6 @@ watch(showRevistas, () => renderChart())
 .revista-item.selected { background: #e9f2ff; }
 .revista-item .name { flex: 1; }
 .revista-item .total { color: #334155; font-weight: 600; }
-
 .help { border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; padding: .75rem .9rem; font-size: .92rem; }
 .help ul { margin: .4rem 0 0; padding-left: 1.1rem; }
 .help li { margin: .25rem 0; }

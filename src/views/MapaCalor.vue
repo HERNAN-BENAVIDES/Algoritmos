@@ -1,27 +1,30 @@
+<!-- MapaCalor.vue-->
 <template>
   <div class="heatmap-view">
     <div class="header-row">
       <h2>Mapa de calor – País del primer autor</h2>
       <div class="actions">
         <button class="primary" @click="loadData" :disabled="loading">{{ loading ? 'Cargando…' : 'Actualizar' }}</button>
+        <button class="secondary" @click="exportPdf" :disabled="loading || !countries.length">Exportar PDF</button>
       </div>
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
 
-    <div class="chart-wrapper">
-      <div v-if="loading" class="loading">Cargando datos…</div>
-      <div v-show="!loading" ref="chartEl" class="chart"></div>
+    <div ref="exportEl" class="export-wrapper">
+      <div class="chart-wrapper">
+        <div v-if="loading" class="loading">Cargando datos…</div>
+        <div v-show="!loading" ref="chartEl" class="chart"></div>
+      </div>
+      <div v-if="countries.length" class="legend">
+        <h3>Totales</h3>
+        <ul>
+          <li v-for="c in countries" :key="c.country">{{ labelFor(c.country) }}: <strong>{{ c.count }}</strong></li>
+        </ul>
+      </div>
     </div>
 
     <p v-if="!loading && !countries.length && !error" class="empty">No hay datos para mostrar.</p>
-
-    <div v-if="countries.length" class="legend">
-      <h3>Totales</h3>
-      <ul>
-        <li v-for="c in countries" :key="c.country">{{ labelFor(c.country) }}: <strong>{{ c.count }}</strong></li>
-      </ul>
-    </div>
 
     <details class="debug" v-if="rawData">
       <summary>Depuración: respuesta del backend</summary>
@@ -33,6 +36,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { mapFirstAuthorCountries } from '@/lib/api'
+import { exportSingleElement } from '@/lib/exportPdf'
 
 // Mapeos básicos ISO3->ISO2 y nombres ES/EN -> ISO2 (cobertura de países más comunes)
 const iso3to2 = {
@@ -86,6 +90,7 @@ const error = ref('')
 const countries = ref([])
 const rawData = ref(null)
 const chartEl = ref(null)
+const exportEl = ref(null)
 let googleLoaded = false
 
 function pretty(obj) {
@@ -177,6 +182,16 @@ function renderChart() {
   })
 }
 
+async function exportPdf() {
+  try {
+    if (!exportEl.value) throw new Error('Elemento no disponible')
+    await exportSingleElement(exportEl.value, 'mapa_calor.pdf')
+  } catch (e) {
+    console.error('[MapaCalor] Exportación fallida:', e)
+    alert(e.message || 'No se pudo exportar el PDF')
+  }
+}
+
 onMounted(() => { loadData() })
 </script>
 
@@ -186,7 +201,10 @@ onMounted(() => { loadData() })
 .actions { display: flex; gap: .5rem; }
 .primary { background: #0b5ed7; color: #fff; border: none; border-radius: 8px; padding: .5rem .9rem; cursor: pointer; }
 .primary:disabled { opacity: .6; cursor: not-allowed; }
+.secondary { background: #eef4ff; color: #0b5ed7; border: 1px solid #cfe2ff; border-radius: 8px; padding: .45rem .85rem; cursor: pointer; }
+.secondary:disabled { opacity: .6; cursor: not-allowed; }
 .error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: .5rem .75rem; border-radius: 8px; }
+.export-wrapper { display: grid; gap: 1rem; }
 .chart-wrapper { position: relative; min-height: 460px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; }
 .chart { width: 100%; height: 100%; }
 .loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #0b5ed7; }

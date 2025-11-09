@@ -153,12 +153,6 @@ export async function buildCooccurrence() {
     try { return await res.json() } catch { return null }
 }
 
-export async function buildCooccurrenceFixed() {
-    const res = await apiFetch('/api/algoritmos/coocurrence/build-fixed', { method: 'POST' })
-    if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
-    try { return await res.json() } catch { return null }
-}
-
 export async function mapFirstAuthorCountries() {
   const res = await apiFetch('/api/algoritmos/viz/map-first-author', { method: 'GET' })
   if (!res.ok) throw new Error(`Error ${res.status}: ${res.statusText}`)
